@@ -5,6 +5,8 @@ The RVS is a collection of tests, benchmarks and qualification tools each target
 
 The function of each module see this [link](./FEATURES.md).
 
+Documentaion with examples and about config files [link](./doc/ugsrc/ug1main.md).
+
 ## Prerequisites
 
 Ubuntu : 
