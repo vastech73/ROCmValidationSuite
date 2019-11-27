@@ -205,6 +205,18 @@ void peqt_action::get_pcie_capabilities(struct pci_dev *dev) {
 
     //PWR Current State
     get_pwr_curr_state(dev, buff);
+
+    //PWR Current State
+    get_atomic_op_128_CAS_completer(dev, buff);
+
+    //PWR Current State
+    get_atomic_op_64_completer(dev, buff);
+
+    //PWR Current State
+    get_atomic_op_32_completer(dev, buff);
+
+    //PWR Current State
+    get_atomic_op_routing(dev, buff);
 }
 
 

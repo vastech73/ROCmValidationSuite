@@ -263,6 +263,8 @@ void get_slot_pwr_limit_value(struct pci_dev *dev, char *buff) {
 
         snprintf(buff, PCI_CAP_DATA_MAX_BUF_SIZE, "%0.3fW", pwr);
 
+        spdlog::info(" Slot power limit value {}", pwr);
+
     } else {
       snprintf(buff, PCI_CAP_DATA_MAX_BUF_SIZE, "%s", PCI_CAP_NOT_SUPPORTED);
     }
@@ -355,6 +357,8 @@ void get_kernel_driver(struct pci_dev *dev, char *buff) {
 
     if ((drv = strrchr(buff, '/')) != NULL)
         snprintf(buff, PCI_CAP_DATA_MAX_BUF_SIZE, "%s", drv + 1);
+
+    spdlog::info(" Kernel Driver {}", buff);
 }
 
 /**
@@ -506,11 +510,13 @@ void get_atomic_op_routing(struct pci_dev *dev, char *buff) {
     } else {
       snprintf(buff, PCI_CAP_DATA_MAX_BUF_SIZE, "%s", PCI_CAP_NOT_SUPPORTED);
     }
+
+    spdlog::info(" Atomic_op_routing  {} ", buff);
 }
 
 /**
  * gets the device atomic capabilities register value
- * @param dev a pci_dev structure containing the PCI device information
+ * @pget_atomic_op_routingaram dev a pci_dev structure containing the PCI device information
  */
 int64_t get_atomic_op_register_value(struct pci_dev *dev) {
     unsigned char i, has_memory_bar = 0;
@@ -572,6 +578,7 @@ void get_atomic_op_32_completer(struct pci_dev *dev, char *buff) {
   } else {
     snprintf(buff, PCI_CAP_DATA_MAX_BUF_SIZE, "%s", PCI_CAP_NOT_SUPPORTED);
   }
+  spdlog::info(" Atomic_op_32_completer {} ", buff);
 }
 
 /**
@@ -596,6 +603,7 @@ void get_atomic_op_64_completer(struct pci_dev *dev, char *buff) {
   } else {
     snprintf(buff, PCI_CAP_DATA_MAX_BUF_SIZE, "%s", PCI_CAP_NOT_SUPPORTED);
   }
+  spdlog::info(" Atomic_op_64_completer {} ", buff);
 }
 
 /**
@@ -620,6 +628,7 @@ void get_atomic_op_128_CAS_completer(struct pci_dev *dev, char *buff) {
   } else {
     snprintf(buff, PCI_CAP_DATA_MAX_BUF_SIZE, "%s", PCI_CAP_NOT_SUPPORTED);
   }
+  spdlog::info(" Atomic_op_128_CAS_completer {} ", buff);
 }
 
 }
