@@ -23,6 +23,7 @@
  *
  *******************************************************************************/
 #include "include/action.h"
+#include "spdlog/spdlog.h"
 
 #include <string>
 #include <vector>
@@ -422,6 +423,9 @@ int gst_action::get_all_selected_gpus(void) {
  */
 int gst_action::run(void) {
     string msg;
+
+    //Initialize the logger
+    spdlog::initialize_logger(MODULE_NAME);
 
     // get the action name
     if (property_get(RVS_CONF_NAME_KEY, &action_name)) {

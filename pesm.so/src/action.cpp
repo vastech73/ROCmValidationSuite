@@ -51,6 +51,7 @@ using std::cout;
 using std::endl;
 using std::hex;
 
+#include "spdlog/spdlog.h"
 
 extern Worker* pworker;
 
@@ -155,29 +156,6 @@ bool pesm_action::get_all_pesm_config_keys(void) {
  * */
 int pesm_action::run(void) {
   string msg;
-  RVSTRACE_
-
-  // this module implements --listGpu command line option
-  // if this option is set, an internal input key 'do_gpu_list' is passed
-  // to this action
-  if (has_property("do_gpu_list")) {
-    return do_gpu_list();
-  }
-
-  // get commong configuration keys
-  if (!get_all_common_config_keys()) {
-    return 1;
-  }
-
-  // get PESM specific configuration keys
-  if (!get_all_pesm_config_keys()) {
-    return 1;
-  }
-
-  // debugging help
-  if (prop_debugwait) {
-    sleep(prop_debugwait);
-  }
 
   // end of monitoring requested?
   if (!prop_monitor) {
@@ -195,14 +173,6 @@ int pesm_action::run(void) {
     return 0;
   }
 
-  RVSTRACE_
-  if (pworker) {
-    rvs::lp::Log("[" + property["name"]+ "] pesm monitoring already started",
-                rvs::logdebug);
-    return 0;
-  }
-
-  RVSTRACE_
   // create worker thread
   pworker = new Worker();
   pworker->set_name(action_name);
@@ -211,11 +181,18 @@ int pesm_action::run(void) {
   pworker->set_deviceid(property_device_id);
 
   // start worker thread
-  RVSTRACE_
   pworker->start();
-  sleep(2);
 
-  RVSTRACE_
+  // get the <deviceid> property value if provided
+  property_get_int<int>(RVS_CONF_DURATION_KEY, &prop_debugwait, 0);
+
+  // debugging help
+  if (prop_debugwait) {
+    sleep(prop_debugwait);
+  }
+
+  // start worker thread
+  pworker->stop();
   return 0;
 }
 

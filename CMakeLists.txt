@@ -105,7 +105,7 @@ set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
 set(CPACK_COMPONENTS_ALL applications rvsmodule)
 
 set(RVS_COVERAGE FALSE CACHE BOOL "TRUE if code coverage is to be provided")
-set(RVS_BUILD_TESTS TRUE CACHE BOOL "TRUE if tests are to be built")
+set(RVS_BUILD_TESTS FALSE CACHE BOOL "TRUE if tests are to be built")
 
 set(RVS_DO_TRACE "1" CACHE STRING "Expand RVSTRACE_ macro")
 set(RVS_ROCBLAS "0" CACHE STRING "1 = use local rocBLAS")

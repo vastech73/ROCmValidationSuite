@@ -36,11 +36,15 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
+#include <string>
+using std::string;
+#include "spdlog/spdlog.h"
 
 #define PCI_CAP_DATA_MAX_BUF_SIZE 1024
 #define PCI_CAP_NOT_SUPPORTED "NOT SUPPORTED"
 #define MEM_BAR_MAX_INDEX 5
 
+#if 0
 #ifdef RVS_UNIT_TEST
   #include "include/rvs_unit_testing_defs.h"
   #define pci_read_long rvs_pci_read_long
@@ -53,6 +57,7 @@ extern "C" {
   using rvs::rvs_pci_get_param;
   using rvs::rvs_readlink;
   using rvs::rvs_pci_write_byte;
+#endif
 #endif
 
 extern "C" {
@@ -100,17 +105,22 @@ void get_link_cap_max_speed(struct pci_dev *dev, char *buff) {
         switch (pci_dev_lnk_cap & PCI_EXP_LNKCAP_SLS) {
         case 1:
             link_max_speed = "2.5 GT/s";
+            spdlog::info(" PCIE Gen1 detected, speed is {}", link_max_speed);
             break;
         case 2:
             link_max_speed = "5 GT/s";
+            spdlog::info(" PCIE Gen2 detected, speed is {}", link_max_speed);
             break;
         case 3:
             link_max_speed = "8 GT/s";
+            spdlog::info(" PCIE Gen3 detected, speed is {}", link_max_speed);
             break;
         case 4:
             link_max_speed = "16 GT/s";
+            spdlog::info(" PCIE Gen4 detected, speed is {}", link_max_speed);
             break;
         default:
+            spdlog::info(" Couldnt detect PCIE speed ");
             link_max_speed = "Unknown speed";
         }
 
@@ -136,6 +146,9 @@ void get_link_cap_max_width(struct pci_dev *dev, char *buff) {
                 cap_offset + PCI_EXP_LNKCAP);
         snprintf(buff, PCI_CAP_DATA_MAX_BUF_SIZE, "x%d",
                 ((pci_dev_lnk_cap & PCI_EXP_LNKCAP_MLW) >> 4));
+
+        spdlog::info(" PCIE Max Link Width {}", buff);
+
     } else {
       snprintf(buff, PCI_CAP_DATA_MAX_BUF_SIZE, "%s", PCI_CAP_NOT_SUPPORTED);
     }
@@ -176,6 +189,8 @@ void get_link_stat_cur_speed(struct pci_dev *dev, char *buff) {
             link_cur_speed = "Unknown speed";
         }
 
+        spdlog::info(" PCIE Current Max Speed is {}", link_cur_speed);
+
         snprintf(buff, PCI_CAP_DATA_MAX_BUF_SIZE, "%s", link_cur_speed);
     } else {
       snprintf(buff, PCI_CAP_DATA_MAX_BUF_SIZE, "%s", PCI_CAP_NOT_SUPPORTED);
@@ -198,6 +213,7 @@ void get_link_stat_neg_width(struct pci_dev *dev, char *buff) {
         snprintf(buff, PCI_CAP_DATA_MAX_BUF_SIZE, "x%d",
                 ((pci_dev_lnk_stat & PCI_EXP_LNKSTA_NLW)
                         >> PCI_EXP_LNKSTA_NLW_SHIFT));
+        spdlog::info(" PCIE Negotiated link width is {}", buff);
     } else {
       snprintf(buff, PCI_CAP_DATA_MAX_BUF_SIZE, "%s", PCI_CAP_NOT_SUPPORTED);
     }
@@ -244,6 +260,7 @@ void get_slot_pwr_limit_value(struct pci_dev *dev, char *buff) {
                     * pow(10, -slot_pwr_limit_scale);
         }
 
+
         snprintf(buff, PCI_CAP_DATA_MAX_BUF_SIZE, "%0.3fW", pwr);
 
     } else {
@@ -259,16 +276,10 @@ void get_slot_pwr_limit_value(struct pci_dev *dev, char *buff) {
  */
 void get_slot_physical_num(struct pci_dev *dev, char *buff) {
     // get pci dev capabilities offset
-    unsigned int cap_offset = pci_dev_find_cap_offset(dev, PCI_CAP_ID_EXP,
-    PCI_CAP_NORMAL);
+    int slot = PCI_SLOT(dev->func);
 
-    if (cap_offset != 0) {
-        unsigned int slot_cap = pci_read_long(dev, cap_offset + PCI_EXP_SLTCAP);
-        snprintf(buff, PCI_CAP_DATA_MAX_BUF_SIZE, "#%u",
-                ((slot_cap & PCI_EXP_SLTCAP_PSN) >> 19));
-    } else {
-        snprintf(buff, PCI_CAP_DATA_MAX_BUF_SIZE, "%s", PCI_CAP_NOT_SUPPORTED);
-    }
+    spdlog::info(" PCIE Function Number {}", dev->func);
+    spdlog::info(" PCIE Get Physical Slot Number {}", slot);
 }
 
 /**
@@ -279,6 +290,7 @@ void get_slot_physical_num(struct pci_dev *dev, char *buff) {
  */
 void get_pci_bus_id(struct pci_dev *dev, char *buff) {
   snprintf(buff, PCI_CAP_DATA_MAX_BUF_SIZE, "%0X", dev->bus);
+  spdlog::info(" PCIE Device Bus ID {}", dev->bus);
 }
 
 /**
@@ -289,6 +301,7 @@ void get_pci_bus_id(struct pci_dev *dev, char *buff) {
  */
 void get_device_id(struct pci_dev *dev, char *buff) {
     snprintf(buff, PCI_CAP_DATA_MAX_BUF_SIZE, "%u", dev->device_id);
+    spdlog::info(" PCIE Device ID {}", dev->device_id);
 }
 
 /**
@@ -299,6 +312,7 @@ void get_device_id(struct pci_dev *dev, char *buff) {
  */
 void get_vendor_id(struct pci_dev *dev, char *buff) {
     snprintf(buff, PCI_CAP_DATA_MAX_BUF_SIZE, "%u", dev->vendor_id);
+    spdlog::info(" PCIE Vendor ID {}", dev->vendor_id);
 }
 
 /**
@@ -363,6 +377,7 @@ void get_dev_serial_num(struct pci_dev *dev, char *buff) {
     } else {
       snprintf(buff, PCI_CAP_DATA_MAX_BUF_SIZE, "%s", PCI_CAP_NOT_SUPPORTED);
     }
+    spdlog::info(" PCIE Serial Number {}", buff);
 }
 
 /**
@@ -410,6 +425,9 @@ void get_pwr_budgeting(struct pci_dev *dev, uint8_t pb_pm_state,
             i++;
         } while (1);
     }
+    spdlog::info(" PCIE Power Management State for Given Operating Condition {}", pb_pm_state);
+    spdlog::info(" PCIE Type of the Given Operating Condition {}", pb_type);
+    spdlog::info(" PCIE Thermal Load or Power Rail for the Given Operating Condition {}", pb_power_rail);
 }
 
 /**
@@ -449,6 +467,7 @@ void get_pwr_curr_state(struct pci_dev *dev, char *buff) {
   }
 
   snprintf(buff, PCI_CAP_DATA_MAX_BUF_SIZE, "%s", type_s);
+  spdlog::info(" Get Power State {}", type_s);
 }
 
 /**

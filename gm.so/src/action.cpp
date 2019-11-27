@@ -38,6 +38,7 @@
 #include "include/gpu_util.h"
 #include "include/rsmi_util.h"
 #include "include/worker.h"
+#include "spdlog/spdlog.h"
 
 #define JSON_CREATE_NODE_ERROR          "JSON cannot create node"
 #define MODULE_NAME                     "gm"
@@ -257,6 +258,9 @@ bool gm_action::get_all_gm_config_keys(void) {
  * */
 int gm_action::run(void) {
   string msg;
+
+  //Initialize the logger
+  spdlog::initialize_logger(MODULE_NAME);
 
   // if monitoring is already running, stop it
   // (it will be restarted if needed)

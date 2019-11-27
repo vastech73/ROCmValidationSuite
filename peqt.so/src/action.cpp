@@ -46,6 +46,7 @@ extern "C" {
 #include "include/rvs_util.h"
 #include "include/rvs_module.h"
 #include "include/rvsloglp.h"
+#include "spdlog/spdlog.h"
 
 #define CHAR_BUFF_MAX_SIZE              1024
 #define PCI_DEV_NUM_CAPABILITIES        14
@@ -92,6 +93,7 @@ void (*arr_prop_pfunc_names[])(struct pci_dev *dev, char *) = {
     get_atomic_op_32_completer, get_atomic_op_64_completer,
     get_atomic_op_128_CAS_completer
 };
+
 
 const char * pb_op_pm_states_list[] = {"D0", "D1", "D2", "D3"};
 const char * pb_op_types_list[] = {"PMEAux", "Auxiliary", "Idle",
@@ -164,6 +166,49 @@ bool peqt_action::get_all_common_config_keys(void) {
 
 
 /**
+ * @brief Just get all the necessary PCIE stuff
+ */
+void peqt_action::get_pcie_capabilities(struct pci_dev *dev) {
+    char buff[CHAR_BUFF_MAX_SIZE];
+    uint8_t pb_pm_state, pb_type, pb_power_rail;
+
+
+    //Link Cap Mac Speed
+    get_link_cap_max_speed(dev, buff);
+
+    //Link Cap Mac Width
+    get_link_cap_max_width(dev, buff);
+
+    //Link Stat Current Speed
+    get_link_stat_cur_speed(dev, buff);
+     
+    //Link Stat Negative Width
+    get_link_stat_neg_width(dev, buff);
+      
+    //Slot Power Limit Value
+    get_slot_pwr_limit_value(dev, buff);
+
+    //Slot Physical Number
+    get_slot_physical_num(dev, buff);
+
+    //PCI Bud Id
+    get_pci_bus_id(dev, buff);
+
+    //PCI Device ID
+    get_device_id(dev, buff);
+
+    //PCI Vendor ID
+    get_vendor_id(dev, buff);
+
+    //PCI power budegeting
+    get_pwr_budgeting(dev, pb_pm_state, pb_type, pb_power_rail, buff);
+
+    //PWR Current State
+    get_pwr_curr_state(dev, buff);
+}
+
+
+/**
  * @brief gets all PCIe capabilities for a given AMD compatible GPU and
  * checks the values against the given set of regular expressions
  * @param dev pointer to pci_dev corresponding to the current GPU
@@ -203,6 +248,7 @@ bool peqt_action::get_gpu_all_pcie_capabilities(struct pci_dev *dev,
     for (it = property.begin(); it != property.end(); ++it) {
         // skip the "capability."
         string prop_name = it->first.substr(it->first.find_last_of(".") + 1);
+
         bool prop_found = false;
         for (i = 0; i < PCI_DEV_NUM_CAPABILITIES; i++) {
             if (prop_name == pcie_cap_names[i]) {
@@ -268,6 +314,7 @@ bool peqt_action::get_gpu_all_pcie_capabilities(struct pci_dev *dev,
                                 pb_op_pm_power_rails_encodings_map.find
                                         (prop_name.substr(pos_pb_type + 1));
                 uint8_t pb_op_power_rail = it_pb_power_rail->second;
+
                 // query for power budgeting capabilities
                 get_pwr_budgeting(dev, pb_op_pm_state, pb_op_pm_type,
                                                     pb_op_power_rail, buff);
@@ -313,80 +360,30 @@ bool peqt_action::get_gpu_all_pcie_capabilities(struct pci_dev *dev,
  * @return run result
  */
 int peqt_action::run(void) {
-    string msg;
-    map<string, string>::iterator it;  // module's properties map iterator
-    bool pci_infra_qual_result = true;  // PCI qualification result
-    bool amd_gpus_found = false;
-    uint8_t i;
-    unsigned int sec;
-    unsigned int usec;
 
     struct pci_access *pacc;
     struct pci_dev *dev;
 
-    RVSTRACE_
-    bjson = false;  // already initialized in the default constructor
-
-    // check for -j flag (json logging)
-    if (property.find("cli.-j") != property.end()) {
-      bjson = true;
-    }
-
-    if (!get_all_common_config_keys()) {
-      msg = "Error in get_all_common_config_keys()";
-      rvs::lp::Err(msg, MODULE_NAME_CAPS, action_name);
-      return -1;
-    }
+    //Initialize the logging to a file
+    spdlog::initialize_logger(MODULE_NAME);
 
     // get the pci_access structure
     pacc = pci_alloc();
 
     if (pacc == NULL) {
         // log the error
-        msg = PCI_ALLOC_ERROR;
-        rvs::lp::Err(msg, MODULE_NAME, action_name);
+        spdlog::critical(" PCIE Allocation Failed , returning from here"); 
         return 1;  // PCIe qualification check cannot continue
     }
 
-    // compose Power Budgeting dynamic regex
-    string dyn_pb_regex_str = "^(";
-    for (i = 0; i < PB_NUM_OP_STATES; i++) {
-        dyn_pb_regex_str += pb_op_pm_states_list[i];
-        pb_op_pm_states_encodings_map.insert(std::pair<string, uint8_t>
-                    (pb_op_pm_states_list[i], pb_op_pm_states_encoding[i]));
-        if (i < PB_NUM_OP_STATES - 1)
-            dyn_pb_regex_str += "|";
-    }
-    dyn_pb_regex_str += ")_(";
-    for (i = 0; i < PB_NUM_OP_TYPES; i++) {
-        dyn_pb_regex_str += pb_op_types_list[i];
-        pb_op_pm_types_encodings_map.insert(std::pair<string, uint8_t>
-                    (pb_op_types_list[i], pb_op_types_encoding[i]));
-        if (i < PB_NUM_OP_TYPES - 1)
-            dyn_pb_regex_str += "|";
-    }
-    dyn_pb_regex_str += ")_(";
-    for (i = 0; i < PN_NUM_OP_POWER_RAILS; i++) {
-        dyn_pb_regex_str += pb_op_power_rails_list[i];
-        pb_op_pm_power_rails_encodings_map.insert(std::pair<string, uint8_t>
-                    (pb_op_power_rails_list[i], pb_op_power_rails_encoding[i]));
-        if (i < PN_NUM_OP_POWER_RAILS - 1)
-            dyn_pb_regex_str += "|";
-    }
-
-    dyn_pb_regex_str += ")$";
-    pb_dynamic_regex.assign(dyn_pb_regex_str);
-
-    RVSTRACE_
     // initialize the PCI library
     pci_init(pacc);
+
     // get the list of devices
     pci_scan_bus(pacc);
 
-    RVSTRACE_
     // iterate over devices
     for (dev = pacc->devices; dev; dev = dev->next) {
-      RVSTRACE_
       // fill in the info
       pci_fill_info(dev,
               PCI_FILL_IDENT | PCI_FILL_BASES | PCI_FILL_CLASS
@@ -404,68 +401,16 @@ int peqt_action::run(void) {
         continue;
       }
 
-      // check for deviceid filtering
-      if (property_device_id > 0 && dev->device_id != property_device_id) {
-        RVSTRACE_
-        continue;
-      }
+      spdlog::info("                                                ");
+      spdlog::info(" ===============================================");
+      spdlog::info(" PCIE Capabilities with GPU ID {} are as follows", gpu_id);
+      spdlog::info(" ===============================================");
 
-      if (!property_device_all) {
-        RVSTRACE_
-        if (find(property_device.begin(), property_device.end(), gpu_id) ==
-                 property_device.end()) {
-          RVSTRACE_
-            continue;
-        }
-      }
-      RVSTRACE_
+      get_pcie_capabilities(dev);
 
-      amd_gpus_found = true;
-      if (!get_gpu_all_pcie_capabilities(dev, gpu_id)) {
-        RVSTRACE_
-        pci_infra_qual_result = false;
-      }
-      RVSTRACE_
     }
 
-    RVSTRACE_
     pci_cleanup(pacc);
 
-    if (!amd_gpus_found) {
-      msg = "No matching GPUs found";
-      rvs::lp::Err(msg, MODULE_NAME, action_name);
-      return -1;
-    }
-
-    RVSTRACE_
-    msg = "[" + action_name + "] " + MODULE_NAME + " "
-            + (pci_infra_qual_result ?
-                    PEQT_RESULT_PASS_MESSAGE : PEQT_RESULT_FAIL_MESSAGE);
-    rvs::lp::Log(msg, rvs::logresults);
-
-    if (bjson) {
-      RVSTRACE_
-      rvs::lp::get_ticks(&sec, &usec);
-      json_root_node = rvs::lp::LogRecordCreate(MODULE_NAME,
-              action_name.c_str(), rvs::logresults, sec, usec);
-      if (json_root_node == NULL) {
-          // log the error
-          msg = JSON_CREATE_NODE_ERROR;
-          rvs::lp::Err(msg, MODULE_NAME, action_name);
-          return -1;
-      }
-
-      if (pci_infra_qual_result) {
-        rvs::lp::AddInt(json_root_node, "Sts", 1);
-        rvs::lp::AddString(json_root_node, "pass", PEQT_RESULT_PASS_MESSAGE);
-      } else {
-        rvs::lp::AddInt(json_root_node, "Sts", 0);
-        rvs::lp::AddString(json_root_node, "pass", PEQT_RESULT_FAIL_MESSAGE);
-      }
-
-      rvs::lp::LogRecordFlush(json_root_node);
-    }
-
-    RVSTRACE_
     return 0;
 }

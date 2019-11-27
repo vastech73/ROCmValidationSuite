@@ -29,6 +29,8 @@
 extern "C" {
 #endif
 
+#define PCI_SLOT(devfn)		(((devfn) >> 3) & 0x1f)
+
 unsigned int pci_dev_find_cap_offset(struct pci_dev *dev,
                                      unsigned char cap, unsigned char type);
 void get_link_cap_max_speed(struct pci_dev *dev, char *buf);

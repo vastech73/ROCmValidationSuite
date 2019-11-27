@@ -83,6 +83,8 @@ class peqt_action: public rvs::actionbase {
 
     bool get_gpu_all_pcie_capabilities(struct pci_dev *dev, uint16_t gpu_id);
 
+    void get_pcie_capabilities(struct pci_dev *dev);
+
 
  protected:
 };
