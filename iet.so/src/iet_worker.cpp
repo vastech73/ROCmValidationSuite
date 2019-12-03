@@ -60,6 +60,7 @@
 #define IET_JSON_LOG_GPU_ID_KEY                 "gpu_id"
 
 using std::string;
+#include "spdlog/spdlog.h"
 
 bool IETWorker::bjson = false;
 
@@ -136,10 +137,12 @@ bool IETWorker::do_gpu_init_training(string *err_description) {
         new blas_worker(gpu_device_index, matrix_size));
     if (gpu_worker == nullptr) {
         *err_description = IET_MEM_ALLOC_ERROR;
+        spdlog::critical(" Error while allocating memory");
         return false;
     }
     if (gpu_worker->get_blas_error()) {
         *err_description = IET_BLAS_FAILURE;
+        spdlog::critical(" ROC BLAS error {}", *err_description);
         return false;
     }
     gpu_worker->set_sgemm_delay(0);
@@ -152,6 +155,7 @@ bool IETWorker::do_gpu_init_training(string *err_description) {
     while (!gpu_worker->is_setup_complete()) {}
     if (gpu_worker->get_blas_error()) {
         *err_description = IET_BLAS_FAILURE;
+        spdlog::critical(" Error while starting the SGEMM work load");
         return false;
     }
 
@@ -189,19 +193,23 @@ bool IETWorker::do_gpu_init_training(string *err_description) {
     num_sgemms_training = gpu_worker->get_num_sgemm_ops();
     if (num_sgemms_training  == 0) {
         *err_description = IET_SGEMM_FAILURE;
+        spdlog::critical(" Single-precision matrix-multiplication error : {}", *err_description);
         return false;
     }
 
     if (power_sampling_iters != 0) {
         avg_power_training /= power_sampling_iters;
-        if (avg_power_training > 0)
+        if (avg_power_training > 0) {
             return true;
+        }
 
         *err_description = IET_POWER_PROC_ERROR;
+        spdlog::critical(" GPU training failed : {}", *err_description);
         return false;
     }
 
     *err_description = IET_POWER_PROC_ERROR;
+    spdlog::critical(" GPU training failed : {}", *err_description);
     return false;
 }
 
@@ -219,6 +227,7 @@ void IETWorker::compute_gpu_stats(void) {
                     (target_power * num_sgemms_training) / avg_power_training;
     sgemm_target_power_si =
                     (sample_interval * sgemm_target_power) / training_time_ms;
+
     // compute the actual SGEMM frequency for the given target_power
     total_ms_sgemm_si = sgemm_target_power_si * ms_per_sgemm;
     sgemm_si_delay = sample_interval - total_ms_sgemm_si;
@@ -274,6 +283,7 @@ bool IETWorker::do_iet_ramp(int *error, string *err_description) {
 
     if (!do_gpu_init_training(err_description)) {
         *error = 1;
+        spdlog::critical(" GPU Init training failed ");
         return false;
     }
 
@@ -282,6 +292,7 @@ bool IETWorker::do_iet_ramp(int *error, string *err_description) {
     if (pwr_log_worker == nullptr) {
         *error = 1;
         *err_description = IET_MEM_ALLOC_ERROR;
+        spdlog::critical(" Memory allocation error ");
         return false;
     }
 
@@ -307,8 +318,10 @@ bool IETWorker::do_iet_ramp(int *error, string *err_description) {
 
     for (;;) {
         // check if stop signal was received
-        if (rvs::lp::Stopping())
+        if (rvs::lp::Stopping()) {
+            spdlog::info(" Stop signal is received");
             return false;
+        }
 
         // get GPU's current average power
         rsmi_status_t rmsi_stat = rsmi_dev_power_ave_get(pwr_device_id, 0,
@@ -348,8 +361,10 @@ bool IETWorker::do_iet_ramp(int *error, string *err_description) {
         }
 
         cur_milis_sampling = time_diff(end_time, iet_start_time);
-        if (cur_milis_sampling > ramp_interval - training_time_ms)
+        if (cur_milis_sampling > ramp_interval - training_time_ms) {
+            spdlog::critical(" Current sampling time is {} Ramp interval is {} Training time is {}", cur_milis_sampling, ramp_interval, training_time_ms);
             return false;
+        }
 
         usleep(POWER_PROCESS_DELAY);
     }
@@ -389,6 +404,7 @@ bool IETWorker::do_iet_power_stress(void) {
             cur_power_value = static_cast<float>(last_avg_power)/1e6;
             avg_power += cur_power_value;
             power_sampling_iters++;
+            spdlog::info(" Current Power value : {} Average Power value {}", cur_power_value, avg_power);
         }
 
         end_time = std::chrono::system_clock::now();
@@ -435,8 +451,10 @@ bool IETWorker::do_iet_power_stress(void) {
     if (rvs::lp::Stopping())
         return false;
 
-    if (num_power_violations > max_violations)
+    if (num_power_violations > max_violations) {
+        spdlog::critical(" Number of violations exceeded the max violations limit");
         return false;
+    }
 
     return true;
 }

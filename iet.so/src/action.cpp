@@ -23,7 +23,7 @@
  *
  *******************************************************************************/
 #include "include/action.h"
-
+#include "spdlog/spdlog.h"
 #include <string>
 #include <vector>
 #include <iostream>
@@ -117,6 +117,7 @@ bool iet_action::get_all_iet_config_keys(void) {
 
     if ((error =
       property_get(RVS_CONF_TARGET_POWER_KEY, &iet_target_power))) {
+      spdlog::critical(" Error while getting the target power : {}", iet_target_power);
       switch (error) {
         case 1:
           msg = "invalid '" + std::string(RVS_CONF_TARGET_POWER_KEY) +
@@ -348,6 +349,7 @@ int iet_action::get_num_amd_gpu_devices(void) {
     string msg;
 
     hipGetDeviceCount(&hip_num_gpu_devices);
+    spdlog::info(" Number of GPU devices found in the system : {}", hip_num_gpu_devices);
     return hip_num_gpu_devices;
 }
 
@@ -409,6 +411,8 @@ int iet_action::get_all_selected_gpus(void) {
         msg = std::string(PCI_ALLOC_ERROR);
         rvs::lp::Err(msg, MODULE_NAME_CAPS, action_name);
 
+        spdlog::critical(" Memory allocation error");
+
         return -1;  // EDPp test cannot continue
     }
 
@@ -465,6 +469,8 @@ int iet_action::get_all_selected_gpus(void) {
         }
     }
 
+    spdlog::info(" Number of GPUs found is :: {}", hip_num_gpu_devices);
+
     pci_cleanup(pacc);
 
     if (amd_gpus_found) {
@@ -487,6 +493,8 @@ int iet_action::get_all_selected_gpus(void) {
 int iet_action::run(void) {
     string msg;
 
+    spdlog::initialize_logger(MODULE_NAME);
+
     // get the action name
     if (property_get(RVS_CONF_NAME_KEY, &action_name)) {
       rvs::lp::Err("Action name missing", MODULE_NAME_CAPS);
@@ -497,16 +505,21 @@ int iet_action::run(void) {
     if (property.find("cli.-j") != property.end())
         bjson = true;
 
-    if (!get_all_common_config_keys())
+    if (!get_all_common_config_keys()) {
+        spdlog::critical("Error while getting common config keys");
         return -1;
+    }
 
-    if (!get_all_iet_config_keys())
+    if (!get_all_iet_config_keys()) {
+        spdlog::critical(" Error while getting the IET config keys");
         return -1;
+    }
 
     if (property_duration > 0 && (property_duration < iet_ramp_interval)) {
         msg = std::string(RVS_CONF_DURATION_KEY) + "' cannot be less than '" +
         RVS_CONF_RAMP_INTERVAL_KEY + "'";
         rvs::lp::Err(msg, MODULE_NAME_CAPS, action_name);
+        spdlog::critical(" Error in the duration field");
         return -1;
     }
 

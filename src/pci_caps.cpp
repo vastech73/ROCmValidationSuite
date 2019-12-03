@@ -278,10 +278,15 @@ void get_slot_pwr_limit_value(struct pci_dev *dev, char *buff) {
  */
 void get_slot_physical_num(struct pci_dev *dev, char *buff) {
     // get pci dev capabilities offset
-    int slot = PCI_SLOT(dev->func);
+    unsigned int cap_offset = pci_dev_find_cap_offset(dev, PCI_CAP_ID_EXP, PCI_CAP_NORMAL);
 
-    spdlog::info(" PCIE Function Number {}", dev->func);
-    spdlog::info(" PCIE Get Physical Slot Number {}", slot);
+    if (cap_offset != 0) {
+        unsigned int slot_cap = pci_read_long(dev, cap_offset + PCI_EXP_SLTCAP);
+        snprintf(buff, PCI_CAP_DATA_MAX_BUF_SIZE, "#%u",
+                ((slot_cap & PCI_EXP_SLTCAP_PSN) >> 19));
+    } else {
+        snprintf(buff, PCI_CAP_DATA_MAX_BUF_SIZE, "%s", PCI_CAP_NOT_SUPPORTED);
+    } 
 }
 
 /**
