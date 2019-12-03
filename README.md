@@ -5,6 +5,8 @@ The RVS is a collection of tests, benchmarks and qualification tools each target
 
 The function of each module see this [link](./FEATURES.md).
 
+Examples and about config files [link](./doc/ugsrc/ug1main.md).
+
 ## Prerequisites
 
 In order to build RVS from source please install prerequisites by following
